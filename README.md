@@ -47,9 +47,9 @@ The system's energy levels are tracked continuously. Let velocity $v = \dot{x}$ 
 - $v_{by} = -l \omega \sin\theta$
 
 **Kinetic Energy (KE)** combines both the cart's translation and the bob's motion:
-$$
+$
 KE = \frac{1}{2} M v^2 + \frac{1}{2} m (v_{bx}^2 + v_{by}^2)
-$$
+$
 
 **Potential Energy (PE)** is defined relative to the pivot joint $y=0$:
 $$
