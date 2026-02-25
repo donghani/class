@@ -93,6 +93,18 @@ v_{t+1} = v_t + \ddot{x} \Delta t \quad \text{and} \quad x_{t+1} = x_t + v_{t+1}
 \omega_{t+1} = \omega_t + \ddot{\theta} \Delta t \quad \text{and} \quad \theta_{t+1} = \theta_t + \omega_{t+1} \Delta t
 ```
 
+## Automated PID Optimization
+
+Finding the perfect stabilization parameters (gains) manually can be difficult. Thus, a secondary script `pid_optimizer.py` is included to mathematically search for the best defaults.
+
+1. **Algorithm**: It uses `scipy.optimize.differential_evolution` to explore combinations of the 6 $K_p$, $K_i$, and $K_d$ parameters across a massive global search space.
+2. **Cost Function**: The search minimizes an LQR-style Integrated Time-weighted Absolute Error (ITAE) cost function that aggressively penalizes:
+   - Positional deviation from $x=0$.
+   - Angle tilting away from $\theta=0$.
+   - High frequency cart and pendulum vibrations (penalizing high $\dot{x}$ and $\dot{\theta}$).
+   - Large control effort ($F^2$).
+3. **Execution**: Run `python pid_optimizer.py`. It will run headless simulations and ultimately spit out the best parameters while logging the 10-second error trajectory to `error_log.csv`. The current defaults within the GUI represent the optimized parameters discovered by this script.
+
 ## How to Use the GUI
 
 1. **Initial Angle**: Set the initial tilting angle of the pendulum prior to simulation. (e.g. `0.1` represents slightly tumbling right).
