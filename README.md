@@ -1,4 +1,4 @@
-# class-circuit-theory
+# 회로이론
 
 소개 <br>
 • 강사 <br>
