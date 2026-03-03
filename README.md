@@ -1,4 +1,4 @@
-# 📚 Hani's Class Repository
+# 📚 Donghani's Class Repository
 
 환영합니다! 이 레포지토리는 학교에서 수강한 다양한 전공 수업의 코딩 과제 및 실습 자료를 모아둔 통합 보관소(Monorepo)입니다.
 
