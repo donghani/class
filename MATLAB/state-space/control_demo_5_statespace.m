@@ -28,8 +28,9 @@ y_pp = lsim(sys_cl_pp, r, t);
 
 %% 2. LQR (Linear Quadratic Regulator)
 % Q: penalty on states (large Q = tight control), R: penalty on input (large R = save energy)
-Q = diag([100, 10, 1]); % Penalize position error most
-R = 1; 
+% Increased Q and decreased R to make the response significantly faster
+Q = diag([1000, 100, 10]); % Penalize position error strongly
+R = 0.1; 
 K_lqr = lqr(A, B, Q, R);
 N_lqr = calc_Nbar(A,B,C,K_lqr);
 sys_cl_lqr = ss(A - B*K_lqr, B*N_lqr, C, D);
@@ -38,7 +39,8 @@ y_lqr = lsim(sys_cl_lqr, r, t);
 %% 3. State Observer + State Feedback (Luenberger)
 % We cannot measure all states, so we estimate them using C.
 % Observer poles must be faster than controller poles (e.g., 5x faster)
-p_obs = [-15, -16, -17];
+% Shifted further left to keep up with the faster LQR controller
+p_obs = [-25, -30, -35];
 L_obs = place(A', C', p_obs)'; % L matrix
 
 % Combine LQR controller with Observer
@@ -51,8 +53,9 @@ y_obs = lsim(sys_cl_obs, r, t);
 
 %% 4. LQG (Linear Quadratic Gaussian) -> Kalman Filter + LQR
 % Process noise covariance Qn, Measurement noise covariance Rn
-Qn = 0.1 * eye(3); % Process noise
-Rn = 0.5;          % Measurement noise (noisy sensor)
+% Increased Qn / Decreased Rn to make the filter respond faster
+Qn = 10 * eye(3);  % Process noise
+Rn = 0.01;         % Measurement noise
 [L_kf, P, E] = lqe(A, eye(3), C, Qn, Rn); % Kalman filter gain
 
 % Combine LQR with Kalman Filter
