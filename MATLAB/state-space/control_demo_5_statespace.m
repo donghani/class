@@ -15,12 +15,12 @@ D = sys_ss.D;
 % Pre-scaler for reference tracking (Nbar) to get zero steady-state error
 calc_Nbar = @(A,B,C,K) inv(-C*inv(A-B*K)*B);
 
-t = 0:0.01:10; % Simulation time
+t = 0:0.001:2; % Simulation time for fast response
 r = ones(size(t)); % Step reference input
 
 %% 1. Pole Placement (Ackermann's Formula)
-% Desired closed-loop poles: fast response (-2+/-2j) and one fast real pole (-10)
-p_des = [-2+2j, -2-2j, -10];
+% Desired closed-loop poles: ultra-fast response
+p_des = [-20+20j, -20-20j, -50];
 K_pp = place(A, B, p_des);
 N_pp = calc_Nbar(A,B,C,K_pp);
 sys_cl_pp = ss(A - B*K_pp, B*N_pp, C, D);
@@ -28,9 +28,9 @@ y_pp = lsim(sys_cl_pp, r, t);
 
 %% 2. LQR (Linear Quadratic Regulator)
 % Q: penalty on states (large Q = tight control), R: penalty on input (large R = save energy)
-% Increased Q and decreased R to make the response significantly faster
-Q = diag([1000, 100, 10]); % Penalize position error strongly
-R = 0.1; 
+% Extreme Q and tiny R to demand ultra-fast response regardless of energy
+Q = diag([100000, 1000, 10]); 
+R = 0.001; 
 K_lqr = lqr(A, B, Q, R);
 N_lqr = calc_Nbar(A,B,C,K_lqr);
 sys_cl_lqr = ss(A - B*K_lqr, B*N_lqr, C, D);
@@ -39,8 +39,8 @@ y_lqr = lsim(sys_cl_lqr, r, t);
 %% 3. State Observer + State Feedback (Luenberger)
 % We cannot measure all states, so we estimate them using C.
 % Observer poles must be faster than controller poles (e.g., 5x faster)
-% Shifted further left to keep up with the faster LQR controller
-p_obs = [-25, -30, -35];
+% Shifted extremely left to keep up with the ultra-fast LQR controller
+p_obs = [-50, -60, -70];
 L_obs = place(A', C', p_obs)'; % L matrix
 
 % Combine LQR controller with Observer
@@ -53,9 +53,9 @@ y_obs = lsim(sys_cl_obs, r, t);
 
 %% 4. LQG (Linear Quadratic Gaussian) -> Kalman Filter + LQR
 % Process noise covariance Qn, Measurement noise covariance Rn
-% Increased Qn / Decreased Rn to make the filter respond faster
-Qn = 10 * eye(3);  % Process noise
-Rn = 0.01;         % Measurement noise
+% Extreme Qn and tiny Rn to force the Kalman filter to react instantly
+Qn = 100 * eye(3);  % Process noise
+Rn = 0.0001;        % Measurement noise
 [L_kf, P, E] = lqe(A, eye(3), C, Qn, Rn); % Kalman filter gain
 
 % Combine LQR with Kalman Filter
