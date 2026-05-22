@@ -72,28 +72,47 @@ w = sqrt(Qn(1,1))*randn(length(t), 3); % Process noise
 y_lqg = lsim(sys_cl_lqg, r, t);
 
 
+%% Performance Metrics Calculation
+inf_pp = stepinfo(sys_cl_pp);
+inf_lqr = stepinfo(sys_cl_lqr);
+inf_obs = stepinfo(sys_cl_obs);
+inf_lqg = stepinfo(sys_cl_lqg);
+
+fprintf('--- Performance Metrics ---\n');
+fprintf('Pole Placement: OS = %.2f%%, Tr = %.2fs, Ts = %.2fs\n', inf_pp.Overshoot, inf_pp.RiseTime, inf_pp.SettlingTime);
+fprintf('LQR           : OS = %.2f%%, Tr = %.2fs, Ts = %.2fs\n', inf_lqr.Overshoot, inf_lqr.RiseTime, inf_lqr.SettlingTime);
+fprintf('Observer      : OS = %.2f%%, Tr = %.2fs, Ts = %.2fs\n', inf_obs.Overshoot, inf_obs.RiseTime, inf_obs.SettlingTime);
+fprintf('LQG           : OS = %.2f%%, Tr = %.2fs, Ts = %.2fs\n', inf_lqg.Overshoot, inf_lqg.RiseTime, inf_lqg.SettlingTime);
+
 %% Visualization (4 Subplots)
 figure('Position', [100, 100, 1200, 800]);
+
+% Helper function to create annotation string
+ann_str = @(inf) sprintf('OS: %.1f%%\nTr: %.2fs\nTs: %.2fs', inf.Overshoot, inf.RiseTime, inf.SettlingTime);
 
 subplot(2, 2, 1);
 plot(t, y_pp, 'LineWidth', 2); hold on; plot(t, r, 'r--');
 title('1. Pole Placement (Ideal, Fixed Poles)', 'FontSize', 12, 'FontWeight', 'bold');
 ylabel('Output y(t)'); grid on; ylim([0 1.5]);
+text(6, 0.4, ann_str(inf_pp), 'FontSize', 10, 'BackgroundColor', 'w', 'EdgeColor', 'k');
 
 subplot(2, 2, 2);
 plot(t, y_lqr, 'LineWidth', 2); hold on; plot(t, r, 'r--');
 title('2. LQR (Optimal Trade-off)', 'FontSize', 12, 'FontWeight', 'bold');
 ylabel('Output y(t)'); grid on; ylim([0 1.5]);
+text(6, 0.4, ann_str(inf_lqr), 'FontSize', 10, 'BackgroundColor', 'w', 'EdgeColor', 'k');
 
 subplot(2, 2, 3);
 plot(t, y_obs, 'LineWidth', 2); hold on; plot(t, r, 'r--');
 title('3. Observer-based Control (Estimated States)', 'FontSize', 12, 'FontWeight', 'bold');
 xlabel('Time (s)'); ylabel('Output y(t)'); grid on; ylim([0 1.5]);
+text(6, 0.4, ann_str(inf_obs), 'FontSize', 10, 'BackgroundColor', 'w', 'EdgeColor', 'k');
 
 subplot(2, 2, 4);
 plot(t, y_lqg, 'LineWidth', 2); hold on; plot(t, r, 'r--');
 title('4. LQG (Kalman Filter + LQR)', 'FontSize', 12, 'FontWeight', 'bold');
 xlabel('Time (s)'); ylabel('Output y(t)'); grid on; ylim([0 1.5]);
+text(6, 0.4, ann_str(inf_lqg), 'FontSize', 10, 'BackgroundColor', 'w', 'EdgeColor', 'k');
 
 exportgraphics(gcf, 'state_space_comparison.png', 'Resolution', 300);
 exit;
