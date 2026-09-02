@@ -9,6 +9,7 @@
 - **[Circuit Theory (회로이론)](./class-circuit-theory)**: 회로이론 수업과 관련된 프로젝트 및 자료
 - **[Microprocessor (마이크로프로세서)](./class-microprocessor)**: 마이크로프로세서 수업과 관련된 프로젝트 및 자료
 - **[Automatic Control (자동제어)](./class-automatic-control)**: 자동제어 수업과 관련된 프로젝트 및 자료
+- **[Introduction to Robotics (로봇공학입문)](./class-introduction-to-robotics)**: 로봇공학입문 강의 자료 및 관련 자료
 
 ## 🚀 About
 
