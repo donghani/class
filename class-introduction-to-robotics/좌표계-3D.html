@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>좌표계·기구학·자코비안·궤도 3D 인터랙티브 · Introduction to Robotics</title>
+<style>
+  :root{--bg:#fff;--panel:#f5f6f8;--line:#e0e0e0;--tx:#151515;--tx2:#5b6470;--accent:#4285F4;--warn:#E8710A;--ok:#188038}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",Arial,sans-serif;color:var(--tx);background:var(--bg)}
+  #wrap{display:flex;height:100%;min-height:100vh}
+  #stage{flex:1;position:relative;min-width:0}
+  canvas#c{display:block;width:100%;height:100%;cursor:grab}
+  canvas#c.drag{cursor:grabbing}
+  canvas#c.pick{cursor:crosshair}
+  #hint{position:absolute;left:16px;bottom:14px;font-size:12px;color:var(--tx2);line-height:1.6}
+  #head{position:absolute;left:20px;top:16px;pointer-events:none}
+  #head h1{font-size:19px;margin:0 0 4px;font-weight:700}
+  #head p{margin:0;font-size:12.5px;color:var(--tx2)}
+  aside{width:356px;flex:0 0 356px;border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:18px 18px 40px}
+  h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);margin:22px 0 10px;font-weight:700}
+  h2:first-child{margin-top:0}
+  .row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+  .row label{flex:0 0 92px;color:var(--tx2)}
+  input[type=range]{flex:1;accent-color:var(--accent)}
+  .val{flex:0 0 60px;text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:14px;padding:5px 11px;font-size:12.5px;cursor:pointer}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  select{width:100%;padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--tx)}
+  .two{display:flex;gap:10px}
+  .two>div{flex:1}
+  .two span{display:block;font-size:11.5px;color:var(--tx2);margin-bottom:4px}
+  .mat{font-variant-numeric:tabular-nums;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:8px}
+  .mat div{display:flex;justify-content:space-between;gap:6px}
+  .mat b{font-weight:600;color:var(--tx2);font-size:11.5px;display:block;margin-bottom:4px}
+  .note{font-size:12px;color:var(--tx2);line-height:1.65;margin-top:10px}
+  .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 10px;font-size:12.5px;cursor:pointer;color:var(--tx)}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--tx2);margin-top:6px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+  .bar{flex:1;height:8px;background:#e6e8ec;border-radius:5px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--accent)}
+  .warn{color:#B0560A;font-weight:700}
+  canvas#plot{width:100%;height:84px;background:#fff;border:1px solid var(--line);border-radius:6px;margin-top:8px;display:block}
+  .hide{display:none}
+  @media (max-width:900px){#wrap{flex-direction:column}aside{width:auto;flex:none;border-left:none;border-top:1px solid var(--line)}#stage{height:56vh;flex:none}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="head">
+      <h1>좌표계 · 기구학 · 자코비안 · 특이점 · 궤도</h1>
+      <p>Introduction to Robotics 1장 개념 실습</p>
+    </div>
+    <div id="hint">드래그: 시점 회전 · 휠: 확대/축소 · Shift+드래그: 이동 · 역기구학 모듈에서 클릭: 목표 지정</div>
+  </div>
+  <aside>
+    <h2>모듈</h2>
+    <div class="chips" id="mods"></div>
+
+    <h2>순기구학 · 관절 값</h2>
+    <div class="row"><label>θ₁ 베이스</label><input type="range" id="j0" min="-180" max="180" value="35"><span class="val" id="v0"></span></div>
+    <div class="row"><label>θ₂ 어깨</label><input type="range" id="j1" min="-100" max="100" value="-52"><span class="val" id="v1"></span></div>
+    <div class="row"><label>θ₃ 팔꿈치</label><input type="range" id="j2" min="-140" max="140" value="72"><span class="val" id="v2"></span></div>
+    <div class="row"><label>θ₄ 손목</label><input type="range" id="j3" min="-120" max="120" value="45"><span class="val" id="v3"></span></div>
+    <div class="btns">
+      <button id="reset">초기 자세</button>
+      <button id="viewIso">등각</button>
+      <button id="viewTop">위</button>
+      <button id="viewFront">정면</button>
+    </div>
+
+    <div id="ikBox" class="hide">
+      <h2>역기구학</h2>
+      <div class="note" style="margin-top:0">바닥이나 공간을 클릭하면 그 점을 도구 목표로 삼아 관절각을 역산한다.</div>
+      <div class="row"><label>목표 높이 z</label><input type="range" id="ikz" min="0" max="250" value="80"><span class="val" id="ikzv"></span></div>
+      <div class="btns">
+        <button id="elbUp" class="on">팔꿈치 위</button>
+        <button id="elbDn">팔꿈치 아래</button>
+      </div>
+      <div class="mat" id="ikBoxOut"></div>
+    </div>
+
+    <div id="jacBox" class="hide">
+      <h2>자코비안</h2>
+      <div class="mat" id="jmat"></div>
+      <div class="row"><label>θ̇₁</label><input type="range" id="d0" min="-100" max="100" value="0"><span class="val" id="dv0"></span></div>
+      <div class="row"><label>θ̇₂</label><input type="range" id="d1" min="-100" max="100" value="0"><span class="val" id="dv1"></span></div>
+      <div class="row"><label>θ̇₃</label><input type="range" id="d2" min="-100" max="100" value="0"><span class="val" id="dv2"></span></div>
+      <div class="row"><label>θ̇₄</label><input type="range" id="d3" min="-100" max="100" value="0"><span class="val" id="dv3"></span></div>
+      <div class="btns"><button id="dzero">관절 속도 0</button></div>
+      <div class="mat" id="velOut"></div>
+      <div class="note">행렬의 각 열은 그 관절만 단위 속도로 돌릴 때 도구 원점이 움직이는 방향이다. 파란 화살표가 네 개의 열, 초록 화살표가 합성된 <b>v = J θ̇</b>다.</div>
+    </div>
+
+    <div id="trajBox" class="hide">
+      <h2>궤도 생성</h2>
+      <div class="chips">
+        <div class="chip on" id="spJoint">관절 공간</div>
+        <div class="chip" id="spCart">직교 공간</div>
+      </div>
+      <div class="chips" style="margin-top:6px">
+        <div class="chip on" id="pfCubic">3차 다항식</div>
+        <div class="chip" id="pfLspb">LSPB</div>
+      </div>
+      <div class="row" style="margin-top:10px"><label>소요 시간</label><input type="range" id="trT" min="10" max="80" value="30"><span class="val" id="trTv"></span></div>
+      <div class="row"><label>시각 t</label><input type="range" id="tscrub" min="0" max="100" value="0"><span class="val" id="tscrubv"></span></div>
+      <div class="btns">
+        <button id="play">재생</button>
+        <button id="rew">처음으로</button>
+        <button id="setStart">시작 = 현재</button>
+        <button id="setGoal">목표 = 현재</button>
+      </div>
+      <canvas id="plot" width="320" height="84"></canvas>
+      <div class="mat" id="trOut"></div>
+      <div class="note">관절 공간 보간은 관절각을 직접 잇기 때문에 계산이 싸지만 도구가 지나는 길이 휜다. 직교 공간 보간은 도구가 직선을 그리지만 매 시점 역기구학을 풀어야 하고, 경로가 작업영역을 벗어나거나 특이점을 지나면 해가 깨진다.</div>
+    </div>
+
+    <h2>특이점 (singular position)</h2>
+    <div class="row"><label>가동성 w</label><div class="bar"><i id="mbar"></i></div><span class="val" id="mval"></span></div>
+    <div class="btns">
+      <button id="sing1">완전히 뻗은 자세</button>
+      <button id="sing2">손목·베이스축 정렬</button>
+      <button id="singOff">벗어나기</button>
+    </div>
+    <div class="note" id="singNote"></div>
+
+    <h2>표시할 좌표계</h2>
+    <div class="chips" id="chips"></div>
+
+    <h2>변환 읽기</h2>
+    <div class="two">
+      <div><span>기준 {A}</span><select id="selA"></select></div>
+      <div><span>대상 {B}</span><select id="selB"></select></div>
+    </div>
+    <div class="mat" id="posBox"></div>
+    <div class="mat" id="rotBox"></div>
+    <div class="note" id="explain"></div>
+
+    <h2>색 규칙</h2>
+    <div class="legend">
+      <span><i style="background:#D93025"></i>X축</span>
+      <span><i style="background:#188038"></i>Y축</span>
+      <span><i style="background:#1A73E8"></i>Z축</span>
+      <span><i style="background:#E8710A"></i>특이 방향</span>
+      <span><i style="background:#188038"></i>도구 속도</span>
+      <span><i style="background:#8430CE"></i>궤도</span>
+    </div>
+    <div class="note">위치는 3×1 벡터 <b>ᴬP<sub>BORG</sub></b>, 방위는 3×3 <b>ᴬR<sub>B</sub></b>. 단위: 길이 m, 각도 도(°), 속도 m/s와 rad/s, 시간 s.</div>
+  </aside>
+</div>
+<script>
+/* ---------- 행렬 ---------- */
+const I4=()=>[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+function mul(a,b){const o=new Array(16);for(let r=0;r<4;r++)for(let c=0;c<4;c++){let s=0;for(let k=0;k<4;k++)s+=a[r*4+k]*b[k*4+c];o[r*4+c]=s;}return o;}
+function trans(x,y,z){const m=I4();m[3]=x;m[7]=y;m[11]=z;return m;}
+function rotZ(t){const c=Math.cos(t),s=Math.sin(t);return [c,-s,0,0, s,c,0,0, 0,0,1,0, 0,0,0,1];}
+function rotY(t){const c=Math.cos(t),s=Math.sin(t);return [c,0,s,0, 0,1,0,0, -s,0,c,0, 0,0,0,1];}
+function rotX(t){const c=Math.cos(t),s=Math.sin(t);return [1,0,0,0, 0,c,-s,0, 0,s,c,0, 0,0,0,1];}
+function apply(m,p){return [m[0]*p[0]+m[1]*p[1]+m[2]*p[2]+m[3], m[4]*p[0]+m[5]*p[1]+m[6]*p[2]+m[7], m[8]*p[0]+m[9]*p[1]+m[10]*p[2]+m[11]];}
+function inv(m){
+  const R=[m[0],m[4],m[8], m[1],m[5],m[9], m[2],m[6],m[10]];
+  const p=[m[3],m[7],m[11]];
+  const t=[-(R[0]*p[0]+R[1]*p[1]+R[2]*p[2]), -(R[3]*p[0]+R[4]*p[1]+R[5]*p[2]), -(R[6]*p[0]+R[7]*p[1]+R[8]*p[2])];
+  return [R[0],R[1],R[2],t[0], R[3],R[4],R[5],t[1], R[6],R[7],R[8],t[2], 0,0,0,1];
+}
+function inv3(A){
+  const d=A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1])-A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0])+A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0]);
+  if(Math.abs(d)<1e-12) return null;
+  const c=(r,k)=>{const m=[];for(let i=0;i<3;i++){if(i===r)continue;const row=[];for(let j=0;j<3;j++){if(j===k)continue;row.push(A[i][j]);}m.push(row);}return m[0][0]*m[1][1]-m[0][1]*m[1][0];};
+  const o=[[0,0,0],[0,0,0],[0,0,0]];
+  for(let r=0;r<3;r++)for(let k=0;k<3;k++) o[k][r]=((r+k)%2?-1:1)*c(r,k)/d;
+  return o;
+}
+const D=x=>x*Math.PI/180, RD=x=>x*180/Math.PI;
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ---------- 순기구학 ---------- */
+const L1=1.35,L2=1.15,L3=0.45, BASE_H=0.32;
+const LIM=[[-180,180],[-100,100],[-140,140],[-120,120]];
+const q=[35,-52,72,45];
+const qd=[0,0,0,0];
+function scene(qq){
+  qq=qq||q;
+  const W=I4();
+  const B=mul(trans(0,0,BASE_H),rotZ(D(qq[0])));
+  const S=mul(B,rotY(D(qq[1])));
+  const E=mul(S,trans(0,0,L1));
+  const E2=mul(E,rotY(D(qq[2])));
+  const Wr=mul(E2,trans(0,0,L2));
+  const Wr2=mul(Wr,rotY(D(qq[3])));
+  const T=mul(Wr2,trans(0,0,L3));
+  const O=mul(trans(1.55,-1.5,0.28),rotZ(D(-35)));
+  const G=mul(trans(0.35,1.95,0.75),rotZ(D(20)));
+  return {W,B,T,O,G,joints:[B,E,Wr,T]};
+}
+function toolPos(qq){return apply(scene(qq).T,[0,0,0]);}
+
+/* ---------- 자코비안 · 특이점 ---------- */
+function jac(qq){
+  const hR=1e-4, hD=RD(hR), J=[[],[],[]];
+  for(let i=0;i<4;i++){
+    const a=qq.slice(),b=qq.slice();
+    a[i]+=hD; b[i]-=hD;
+    const pa=toolPos(a),pb=toolPos(b);
+    for(let r=0;r<3;r++) J[r][i]=(pa[r]-pb[r])/(2*hR);
+  }
+  return J;
+}
+function JJt(J,lam){
+  const A=[[0,0,0],[0,0,0],[0,0,0]];
+  for(let r=0;r<3;r++)for(let c=0;c<3;c++){let s=0;for(let k=0;k<4;k++)s+=J[r][k]*J[c][k];A[r][c]=s+(r===c?(lam||0):0);}
+  return A;
+}
+function manip(J){
+  const A=JJt(J,0);
+  const d=A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1])-A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0])+A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0]);
+  return Math.sqrt(Math.max(d,0));
+}
+function lostDir(J){
+  let best=[0,0,1],bv=Infinity;
+  const N=20;
+  for(let i=0;i<=N;i++)for(let k=0;k<2*N;k++){
+    const th=Math.PI*i/N, ph=Math.PI*k/N;
+    const d=[Math.sin(th)*Math.cos(ph),Math.sin(th)*Math.sin(ph),Math.cos(th)];
+    let s=0;
+    for(let c=0;c<4;c++){let t=0;for(let r=0;r<3;r++)t+=J[r][c]*d[r];s+=t*t;}
+    if(s<bv){bv=s;best=d;}
+  }
+  return best;
+}
+const W0=manip(jac([0,-45,90,0]))||1;
+let diag={ratio:1,dir:[0,0,1]};
+
+/* ---------- 역기구학 ---------- */
+function solveIK(t,seed,iters){
+  let qq=seed.slice();
+  const N=iters||200;
+  for(let it=0;it<N;it++){
+    const p=toolPos(qq);
+    const e=[t[0]-p[0],t[1]-p[1],t[2]-p[2]];
+    if(Math.hypot(e[0],e[1],e[2])<1e-4) break;
+    const J=jac(qq);
+    const Ai=inv3(JJt(J,0.0036));
+    if(!Ai) break;
+    const x=[0,0,0];
+    for(let r=0;r<3;r++){let s=0;for(let c=0;c<3;c++)s+=Ai[r][c]*e[c];x[r]=s;}
+    for(let i=0;i<4;i++){
+      let s=0;for(let r=0;r<3;r++)s+=J[r][i]*x[r];
+      qq[i]=cl(qq[i]+cl(RD(s)*0.6,-8,8),LIM[i][0],LIM[i][1]);
+    }
+  }
+  const p=toolPos(qq);
+  return {q:qq,err:Math.hypot(t[0]-p[0],t[1]-p[1],t[2]-p[2])};
+}
+let ik={target:[1.30,0.90,0.80],elbow:1,err:0,other:false};
+function runIK(){
+  const t=ik.target, base=RD(Math.atan2(t[1],t[0]));
+  const up=solveIK(t,[base,-60,90,0]), dn=solveIK(t,[base,-60,-90,0]);
+  const pick=(ik.elbow>0?up:dn), alt=(ik.elbow>0?dn:up);
+  ik.err=pick.err; ik.other=alt.err<0.02;
+  for(let i=0;i<4;i++){q[i]=Math.round(pick.q[i]);document.getElementById('j'+i).value=q[i];}
+}
+
+/* ---------- 궤도 생성 ---------- */
+const traj={space:'joint',profile:'cubic',T:3.0,t:0,playing:false,last:0,
+  q0:[35,-52,72,45],q1:[-45,-72,105,20],p0:null,p1:null,path:null,seedQ:null,cur:null};
+traj.p0=toolPos(traj.q0); traj.p1=toolPos(traj.q1);
+function profileS(t){
+  const T=traj.T, tt=cl(t,0,T);
+  if(traj.profile==='cubic'){
+    const x=tt/T;
+    return {s:3*x*x-2*x*x*x, sd:(6*x-6*x*x)/T};
+  }
+  const b=0.25, tb=b*T, V=1/(T*(1-b)), a=V/tb;
+  if(tt<tb) return {s:0.5*a*tt*tt, sd:a*tt};
+  if(tt<=T-tb) return {s:V*(tt-tb/2), sd:V};
+  const r=T-tt;
+  return {s:1-0.5*a*r*r, sd:a*r};
+}
+function trajState(t){
+  const st=profileS(t);
+  if(traj.space==='joint'){
+    const qq=[0,0,0,0];
+    for(let i=0;i<4;i++) qq[i]=traj.q0[i]+(traj.q1[i]-traj.q0[i])*st.s;
+    return {q:qq,s:st.s,sd:st.sd,err:0};
+  }
+  const p=[0,0,0];
+  for(let r=0;r<3;r++) p[r]=traj.p0[r]+(traj.p1[r]-traj.p0[r])*st.s;
+  const sol=solveIK(p,traj.seedQ||traj.q0,70);
+  traj.seedQ=sol.q;
+  return {q:sol.q,s:st.s,sd:st.sd,err:sol.err};
+}
+function buildPath(){
+  const N=48, pts=[];
+  let seed=traj.q0.slice();
+  for(let i=0;i<=N;i++){
+    const s=i/N;
+    if(traj.space==='joint'){
+      const qq=[0,0,0,0];
+      for(let k=0;k<4;k++) qq[k]=traj.q0[k]+(traj.q1[k]-traj.q0[k])*s;
+      pts.push({p:toolPos(qq),ok:true});
+    }else{
+      const p=[0,0,0];
+      for(let r=0;r<3;r++) p[r]=traj.p0[r]+(traj.p1[r]-traj.p0[r])*s;
+      const sol=solveIK(p,seed,90); seed=sol.q;
+      pts.push({p:p,ok:sol.err<0.02});
+    }
+  }
+  traj.path=pts;
+}
+function applyTraj(){
+  const r=trajState(traj.t);
+  for(let i=0;i<4;i++){q[i]=r.q[i];document.getElementById('j'+i).value=Math.round(q[i]);}
+  traj.cur=r;
+  document.getElementById('tscrub').value=Math.round(traj.t/traj.T*100);
+}
+function tick(ts){
+  if(!traj.playing) return;
+  const dt=Math.min(0.05,(ts-traj.last)/1000);
+  traj.last=ts; traj.t+=dt;
+  if(traj.t>=traj.T){traj.t=traj.T;traj.playing=false;document.getElementById('play').textContent='재생';}
+  applyTraj(); draw();
+  if(traj.playing) requestAnimationFrame(tick);
+}
+
+/* ---------- 속도 타원체 샘플 ---------- */
+let seedR=12345;
+function rnd(){seedR=(seedR*1103515245+12345)&0x7fffffff;return seedR/0x7fffffff;}
+const SAMP=[];
+for(let i=0;i<520;i++){
+  const g4=[];
+  for(let k=0;k<4;k++){
+    const u=Math.max(rnd(),1e-9), v=rnd();
+    g4.push(Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v));
+  }
+  const n=Math.hypot(g4[0],g4[1],g4[2],g4[3])||1;
+  SAMP.push(g4.map(x=>x/n));
+}
+
+/* ---------- 카메라 ---------- */
+let cam={az:D(38),el:D(24),dist:8.2,pan:[0,0]};
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+let Wd=0,Ht=0,dpr=1;
+function resize(){dpr=window.devicePixelRatio||1;Wd=cv.clientWidth;Ht=cv.clientHeight;cv.width=Wd*dpr;cv.height=Ht*dpr;g.setTransform(dpr,0,0,dpr,0,0);draw();}
+window.addEventListener('resize',resize);
+function viewM(){return mul(rotX(-Math.PI/2 - cam.el),rotZ(-cam.az));}
+function project(p){
+  const v=apply(viewM(),p);
+  const f=Ht*0.9, z=cam.dist - v[2];
+  const s=f/Math.max(z,0.35);
+  return {x:Wd/2+v[0]*s+cam.pan[0], y:Ht/2 - v[1]*s+cam.pan[1], d:z, s:s};
+}
+function unproject(sx,sy,zT){
+  const m=viewM(), f=Ht*0.9;
+  const u=(sx-Wd/2-cam.pan[0])/f, w=-(sy-Ht/2-cam.pan[1])/f;
+  const den=m[2]*u+m[6]*w-m[10];
+  if(Math.abs(den)<1e-9) return null;
+  const t=(zT-m[10]*cam.dist)/den;
+  if(t<=0.05) return null;
+  const v=[u*t,w*t,cam.dist-t];
+  return [m[0]*v[0]+m[4]*v[1]+m[8]*v[2], m[1]*v[0]+m[5]*v[1]+m[9]*v[2], zT];
+}
+
+/* ---------- 그리기 ---------- */
+const AX=['#D93025','#188038','#1A73E8'];
+function seg(a,b,color,w,dash){const A=project(a),B=project(b);g.strokeStyle=color;g.lineWidth=w||1;g.setLineDash(dash||[]);g.beginPath();g.moveTo(A.x,A.y);g.lineTo(B.x,B.y);g.stroke();g.setLineDash([]);}
+function poly(pts,stroke,fill,w){
+  g.beginPath();pts.forEach((p,i)=>{const q2=project(p);i?g.lineTo(q2.x,q2.y):g.moveTo(q2.x,q2.y);});g.closePath();
+  if(fill){g.fillStyle=fill;g.fill();} if(stroke){g.strokeStyle=stroke;g.lineWidth=w||1;g.stroke();}
+}
+function label(p,text,color,size,off){
+  const P=project(p);g.fillStyle=color;g.font=(size||12)+'px -apple-system,Segoe UI,Malgun Gothic,Arial';
+  g.textAlign='left';g.textBaseline='middle';g.fillText(text,P.x+(off?off[0]:6),P.y+(off?off[1]:-2));
+}
+function arrow(o,dir,len,color,name,w){
+  const tip=[o[0]+dir[0]*len,o[1]+dir[1]*len,o[2]+dir[2]*len];
+  const A=project(o),B=project(tip);
+  g.strokeStyle=color;g.lineWidth=w||2;g.setLineDash([]);g.beginPath();g.moveTo(A.x,A.y);g.lineTo(B.x,B.y);g.stroke();
+  const ang=Math.atan2(B.y-A.y,B.x-A.x),h=9;
+  g.fillStyle=color;g.beginPath();
+  g.moveTo(B.x,B.y);
+  g.lineTo(B.x-h*Math.cos(ang-0.38),B.y-h*Math.sin(ang-0.38));
+  g.lineTo(B.x-h*Math.cos(ang+0.38),B.y-h*Math.sin(ang+0.38));
+  g.closePath();g.fill();
+  if(name){g.font='italic 12px Georgia,serif';g.fillStyle=color;g.textAlign='left';g.textBaseline='middle';g.fillText(name,B.x+5,B.y-3);}
+}
+function frame(M,name,len){
+  const o=apply(M,[0,0,0]);
+  const ax=[[M[0],M[4],M[8]],[M[1],M[5],M[9]],[M[2],M[6],M[10]]];
+  arrow(o,ax[0],len,AX[0],'X');arrow(o,ax[1],len,AX[1],'Y');arrow(o,ax[2],len,AX[2],'Z');
+  const P=project(o);g.fillStyle='#151515';g.beginPath();g.arc(P.x,P.y,3.4,0,7);g.fill();
+  g.font='600 13px -apple-system,Segoe UI,Malgun Gothic,Arial';g.fillStyle='#151515';
+  g.textAlign='right';g.textBaseline='top';g.fillText(name,P.x-7,P.y+5);g.textAlign='left';
+}
+function circlePts(M,r,z,n){const a=[];for(let i=0;i<n;i++){const t=i/n*Math.PI*2;a.push(apply(M,[r*Math.cos(t),r*Math.sin(t),z]));}return a;}
+function cylinder(M,r,h,fill,stroke){
+  const bot=circlePts(M,r,0,40),top=circlePts(M,r,h,40);
+  for(let i=0;i<40;i++){poly([bot[i],bot[(i+1)%40],top[(i+1)%40],top[i]],null,fill);}
+  poly(bot,stroke,null,1);poly(top,stroke,fill,1);
+  seg(bot[10],top[10],stroke,1);seg(bot[30],top[30],stroke,1);
+}
+function box(M,s){
+  const h=s/2, c=[[-h,-h,-h],[h,-h,-h],[h,h,-h],[-h,h,-h],[-h,-h,h],[h,-h,h],[h,h,h],[-h,h,h]].map(p=>apply(M,p));
+  const faces=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
+  faces.map(f=>({f,d:f.reduce((s2,i)=>s2+project(c[i]).d,0)/4})).sort((a,b)=>b.d-a.d)
+    .forEach(o=>poly(o.f.map(i=>c[i]),'#9aa3ad','rgba(240,242,245,0.92)',1));
+}
+function grid(){
+  const n=6,st=0.75;
+  for(let i=-n;i<=n;i++){
+    const c2=(i===0)?'#c9ced6':'#e8eaee';
+    seg([i*st,-n*st,0],[i*st,n*st,0],c2,1);
+    seg([-n*st,i*st,0],[n*st,i*st,0],c2,1);
+  }
+}
+
+/* ---------- UI ---------- */
+const mods={ik:false,jac:false,ell:false,traj:false};
+const MODS=[{k:'ik',n:'역기구학'},{k:'jac',n:'자코비안'},{k:'ell',n:'속도 타원체'},{k:'traj',n:'궤도 생성'}];
+const modBox=document.getElementById('mods');
+MODS.forEach(m=>{
+  const b=document.createElement('div');b.className='chip';b.textContent=m.n;
+  b.onclick=()=>{
+    mods[m.k]=!mods[m.k];b.classList.toggle('on',mods[m.k]);
+    document.getElementById('ikBox').classList.toggle('hide',!mods.ik);
+    document.getElementById('jacBox').classList.toggle('hide',!mods.jac);
+    document.getElementById('trajBox').classList.toggle('hide',!mods.traj);
+    cv.classList.toggle('pick',mods.ik);
+    if(m.k==='ik'&&mods.ik) runIK();
+    if(m.k==='traj'&&mods.traj){traj.seedQ=null;buildPath();traj.t=0;applyTraj();}
+    draw();
+  };
+  modBox.appendChild(b);
+});
+const FRAMES=[
+  {k:'W',name:'{W} 월드',len:0.8,on:true},
+  {k:'B',name:'{B} 베이스',len:0.8,on:true},
+  {k:'T',name:'{T} 도구',len:0.7,on:true},
+  {k:'O',name:'{O} 물체',len:0.6,on:true},
+  {k:'G',name:'{G} 목표',len:0.6,on:true}
+];
+const chips=document.getElementById('chips');
+FRAMES.forEach(f=>{
+  const b=document.createElement('div');b.className='chip on';b.textContent=f.name;
+  b.onclick=()=>{f.on=!f.on;b.classList.toggle('on',f.on);draw();};
+  chips.appendChild(b);
+});
+const selA=document.getElementById('selA'),selB=document.getElementById('selB');
+FRAMES.forEach(f=>{
+  selA.insertAdjacentHTML('beforeend','<option value="'+f.k+'">'+f.name+'</option>');
+  selB.insertAdjacentHTML('beforeend','<option value="'+f.k+'">'+f.name+'</option>');
+});
+selA.value='B';selB.value='T';
+selA.onchange=selB.onchange=draw;
+
+['j0','j1','j2','j3'].forEach((id,i)=>{document.getElementById(id).oninput=e=>{q[i]=+e.target.value;draw();};});
+['d0','d1','d2','d3'].forEach((id,i)=>{document.getElementById(id).oninput=e=>{qd[i]=+e.target.value/100*1.5;draw();};});
+document.getElementById('dzero').onclick=()=>{for(let i=0;i<4;i++){qd[i]=0;document.getElementById('d'+i).value=0;}draw();};
+function setQ(a){for(let i=0;i<4;i++){q[i]=a[i];document.getElementById('j'+i).value=a[i];}draw();}
+document.getElementById('reset').onclick=()=>setQ([35,-52,72,45]);
+document.getElementById('sing1').onclick=()=>setQ([q[0],-30,0,0]);
+document.getElementById('sing2').onclick=()=>setQ([q[0],0,0,0]);
+document.getElementById('singOff').onclick=()=>setQ([35,-52,72,45]);
+document.getElementById('viewIso').onclick=()=>{cam.az=D(38);cam.el=D(24);draw();};
+document.getElementById('viewTop').onclick=()=>{cam.az=D(0);cam.el=D(84);draw();};
+document.getElementById('viewFront').onclick=()=>{cam.az=D(0);cam.el=D(4);draw();};
+document.getElementById('ikz').oninput=e=>{ik.target[2]=+e.target.value/100;runIK();draw();};
+document.getElementById('elbUp').onclick=()=>{ik.elbow=1;document.getElementById('elbUp').classList.add('on');document.getElementById('elbDn').classList.remove('on');runIK();draw();};
+document.getElementById('elbDn').onclick=()=>{ik.elbow=-1;document.getElementById('elbDn').classList.add('on');document.getElementById('elbUp').classList.remove('on');runIK();draw();};
+
+function setSpace(sp){
+  traj.space=sp;
+  document.getElementById('spJoint').classList.toggle('on',sp==='joint');
+  document.getElementById('spCart').classList.toggle('on',sp==='cart');
+  traj.seedQ=null;buildPath();applyTraj();draw();
+}
+document.getElementById('spJoint').onclick=()=>setSpace('joint');
+document.getElementById('spCart').onclick=()=>setSpace('cart');
+function setProfile(pf){
+  traj.profile=pf;
+  document.getElementById('pfCubic').classList.toggle('on',pf==='cubic');
+  document.getElementById('pfLspb').classList.toggle('on',pf==='lspb');
+  applyTraj();draw();
+}
+document.getElementById('pfCubic').onclick=()=>setProfile('cubic');
+document.getElementById('pfLspb').onclick=()=>setProfile('lspb');
+document.getElementById('trT').oninput=e=>{traj.T=+e.target.value/10;traj.t=cl(traj.t,0,traj.T);applyTraj();draw();};
+document.getElementById('tscrub').oninput=e=>{traj.t=+e.target.value/100*traj.T;applyTraj();draw();};
+document.getElementById('play').onclick=()=>{
+  if(traj.playing){traj.playing=false;document.getElementById('play').textContent='재생';return;}
+  if(traj.t>=traj.T){traj.t=0;traj.seedQ=null;}
+  traj.playing=true;traj.last=performance.now();
+  document.getElementById('play').textContent='일시정지';
+  requestAnimationFrame(tick);
+};
+document.getElementById('rew').onclick=()=>{traj.t=0;traj.seedQ=null;traj.playing=false;document.getElementById('play').textContent='재생';applyTraj();draw();};
+document.getElementById('setStart').onclick=()=>{traj.q0=q.slice();traj.p0=toolPos(traj.q0);traj.seedQ=null;buildPath();traj.t=0;applyTraj();draw();};
+document.getElementById('setGoal').onclick=()=>{traj.q1=q.slice();traj.p1=toolPos(traj.q1);traj.seedQ=null;buildPath();traj.t=0;applyTraj();draw();};
+
+let drag=null;
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,moved:0};cv.classList.add('drag');cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+  drag.moved+=Math.abs(dx)+Math.abs(dy);
+  if(drag.moved<4)return;
+  if(e.shiftKey){cam.pan[0]+=dx;cam.pan[1]+=dy;}
+  else{cam.az-=dx*0.008;cam.el=Math.max(D(-8),Math.min(D(88),cam.el+dy*0.006));}
+  draw();
+});
+cv.addEventListener('pointerup',e=>{
+  const wasClick=drag&&drag.moved<4;
+  drag=null;cv.classList.remove('drag');
+  if(wasClick&&mods.ik){
+    const r=cv.getBoundingClientRect();
+    const p=unproject(e.clientX-r.left,e.clientY-r.top,ik.target[2]);
+    if(p){ik.target=[p[0],p[1],ik.target[2]];runIK();draw();}
+  }
+});
+cv.addEventListener('wheel',e=>{e.preventDefault();cam.dist=Math.max(3,Math.min(20,cam.dist*(1+e.deltaY*0.0012)));draw();},{passive:false});
+
+/* ---------- 프로파일 그래프 ---------- */
+function drawPlot(){
+  const pc=document.getElementById('plot'), x=pc.getContext('2d');
+  const W=pc.width,H=pc.height;
+  x.clearRect(0,0,W,H);
+  x.strokeStyle='#e8eaee';x.lineWidth=1;
+  x.beginPath();x.moveTo(28,H-16);x.lineTo(W-6,H-16);x.moveTo(28,6);x.lineTo(28,H-16);x.stroke();
+  let maxSd=0;
+  for(let i=0;i<=100;i++) maxSd=Math.max(maxSd,profileS(i/100*traj.T).sd);
+  const px=i=>28+(W-34)*i/100, py=v=>H-16-(H-24)*v;
+  x.strokeStyle='#c9ced6';x.lineWidth=1.4;x.beginPath();
+  for(let i=0;i<=100;i++){const v=profileS(i/100*traj.T).sd/(maxSd||1);const X=px(i),Y=py(v);i?x.lineTo(X,Y):x.moveTo(X,Y);}
+  x.stroke();
+  x.strokeStyle='#4285F4';x.lineWidth=2;x.beginPath();
+  for(let i=0;i<=100;i++){const v=profileS(i/100*traj.T).s;const X=px(i),Y=py(v);i?x.lineTo(X,Y):x.moveTo(X,Y);}
+  x.stroke();
+  const cur=traj.t/traj.T*100;
+  x.strokeStyle='#8430CE';x.setLineDash([3,3]);x.beginPath();x.moveTo(px(cur),6);x.lineTo(px(cur),H-16);x.stroke();x.setLineDash([]);
+  x.fillStyle='#5b6470';x.font='10px -apple-system,Segoe UI,Malgun Gothic,Arial';
+  x.fillText('s',6,py(1)+4); x.fillText('ṡ',6,py(0.45)+4); x.fillText('t',W-12,H-5);
+}
+
+/* ---------- 패널 ---------- */
+const f2=x=>(Math.abs(x)<5e-4?0:x).toFixed(3);
+function updatePanel(S,J){
+  const A=S[selA.value],B=S[selB.value];
+  const R=mul(inv(A),B);
+  const p=[R[3],R[7],R[11]];
+  document.getElementById('posBox').innerHTML=
+    '<b>위치 &nbsp;<sup>'+selA.value+'</sup>P<sub>'+selB.value+'ORG</sub> (m)</b>'+
+    '<div><span>x</span><span>'+f2(p[0])+'</span></div>'+
+    '<div><span>y</span><span>'+f2(p[1])+'</span></div>'+
+    '<div><span>z</span><span>'+f2(p[2])+'</span></div>';
+  const rows=[[R[0],R[1],R[2]],[R[4],R[5],R[6]],[R[8],R[9],R[10]]];
+  document.getElementById('rotBox').innerHTML=
+    '<b>방위 &nbsp;<sup>'+selA.value+'</sup>R<sub>'+selB.value+'</sub></b>'+
+    rows.map(r=>'<div>'+r.map(v=>'<span>'+f2(v)+'</span>').join('')+'</div>').join('');
+  const sy=Math.hypot(R[0],R[4]);
+  document.getElementById('explain').innerHTML=
+    '원점 사이 거리 <b>'+Math.hypot(p[0],p[1],p[2]).toFixed(3)+' m</b> · Z–Y–X 오일러 각 α='+
+    RD(Math.atan2(R[4],R[0])).toFixed(1)+'°, β='+RD(Math.atan2(-R[8],sy)).toFixed(1)+'°, γ='+RD(Math.atan2(R[9],R[10])).toFixed(1)+'°<br>'+
+    '{'+selA.value+'}에서 본 {'+selB.value+'}의 설명이다. 기준을 바꾸면 같은 물체라도 숫자가 달라진다.';
+  ['v0','v1','v2','v3'].forEach((id,i)=>document.getElementById(id).textContent=Math.round(q[i])+'°');
+
+  const pct=Math.round(diag.ratio*100);
+  const bar=document.getElementById('mbar');
+  bar.style.width=Math.max(pct,1)+'%';
+  bar.style.background=diag.ratio<0.12?'#E8710A':(diag.ratio<0.35?'#F9AB00':'#4285F4');
+  document.getElementById('mval').textContent=pct+'%';
+  let msg;
+  if(diag.ratio<0.12) msg='<span class="warn">특이점이다.</span> 도구는 주황 점선 방향으로 어떤 관절을 움직여도 속도를 낼 수 없다.';
+  else if(diag.ratio<0.35) msg='특이점에 가깝다. 주황 점선 방향으로 조금 움직이려면 관절 속도가 매우 커진다.';
+  else msg='네 관절이 서로 다른 방향으로 도구를 움직일 수 있다.';
+  document.getElementById('singNote').innerHTML=msg+
+    '<br><br>완전히 뻗은 자세는 더 나아갈 수 없는 <b>경계 특이점</b>, 손목이 베이스 회전축과 겹치는 자세는 θ₁을 돌려도 도구가 제자리인 <b>내부 특이점</b>이다. '+
+    'Figure 1.9의 후방 기총수 기구도 특정 자세에서 겨눌 수 없는 방향이 생기는데, 같은 현상이다.';
+
+  if(mods.jac){
+    document.getElementById('jmat').innerHTML='<b>J (3×4), 단위 m/rad</b>'+
+      ['x','y','z'].map((ax,r)=>'<div><span>'+ax+'</span>'+J[r].map(v=>'<span>'+f2(v)+'</span>').join('')+'</div>').join('');
+    const v=[0,0,0];
+    for(let r=0;r<3;r++){let s=0;for(let c=0;c<4;c++)s+=J[r][c]*qd[c];v[r]=s;}
+    document.getElementById('velOut').innerHTML='<b>도구 속도 v = J θ̇ (m/s)</b>'+
+      '<div><span>vx</span><span>'+f2(v[0])+'</span></div>'+
+      '<div><span>vy</span><span>'+f2(v[1])+'</span></div>'+
+      '<div><span>vz</span><span>'+f2(v[2])+'</span></div>'+
+      '<div><span>크기</span><span>'+Math.hypot(v[0],v[1],v[2]).toFixed(3)+'</span></div>';
+    for(let i=0;i<4;i++) document.getElementById('dv'+i).textContent=qd[i].toFixed(2);
+  }
+  if(mods.ik){
+    document.getElementById('ikzv').textContent=ik.target[2].toFixed(2)+' m';
+    const reach=ik.err<0.02;
+    document.getElementById('ikBoxOut').innerHTML='<b>목표 ᵂP (m) · 잔차</b>'+
+      '<div><span>x</span><span>'+f2(ik.target[0])+'</span></div>'+
+      '<div><span>y</span><span>'+f2(ik.target[1])+'</span></div>'+
+      '<div><span>z</span><span>'+f2(ik.target[2])+'</span></div>'+
+      '<div><span>오차</span><span>'+ik.err.toFixed(4)+' m</span></div>'+
+      '<div style="margin-top:6px;color:'+(reach?'#188038':'#B0560A')+';font-weight:600">'+
+      (reach?(ik.other?'해가 2개다 — 팔꿈치 위/아래':'해가 1개다'):'작업영역 밖이다 — 도달 불가')+'</div>';
+  }
+  if(mods.traj){
+    document.getElementById('trTv').textContent=traj.T.toFixed(1)+' s';
+    document.getElementById('tscrubv').textContent=traj.t.toFixed(2)+' s';
+    const c=traj.cur||trajState(traj.t);
+    const J2=jac(q); const v=[0,0,0];
+    const dir=[traj.p1[0]-traj.p0[0],traj.p1[1]-traj.p0[1],traj.p1[2]-traj.p0[2]];
+    const dist=Math.hypot(dir[0],dir[1],dir[2]);
+    const bad=traj.path?traj.path.filter(x=>!x.ok).length:0;
+    document.getElementById('trOut').innerHTML='<b>궤도 상태</b>'+
+      '<div><span>진행 s</span><span>'+c.s.toFixed(3)+'</span></div>'+
+      '<div><span>ṡ</span><span>'+c.sd.toFixed(3)+' /s</span></div>'+
+      '<div><span>직선 거리</span><span>'+dist.toFixed(3)+' m</span></div>'+
+      (traj.space==='cart'?'<div><span>역기구학 오차</span><span>'+c.err.toFixed(4)+' m</span></div>':'')+
+      '<div style="margin-top:6px;color:'+(bad?'#B0560A':'#188038')+';font-weight:600">'+
+      (bad?('경로 중 '+bad+'개 지점 도달 불가'):'경로 전체가 작업영역 안에 있다')+'</div>';
+    drawPlot();
+  }
+}
+
+/* ---------- 렌더 ---------- */
+function draw(){
+  const S=scene();
+  const J=jac(q);
+  diag.ratio=Math.min(1,manip(J)/W0);
+  diag.dir=lostDir(J);
+  const near=diag.ratio<0.12;
+  const armCol=near?'#E8710A':'#5b6470';
+  const t=apply(S.T,[0,0,0]);
+
+  g.clearRect(0,0,Wd,Ht);
+  grid();
+  cylinder(I4(),0.55,BASE_H,'rgba(236,238,242,0.9)','#9aa3ad');
+
+  if(mods.traj&&traj.path){
+    for(let i=0;i<traj.path.length-1;i++){
+      const a=traj.path[i],b=traj.path[i+1];
+      const ok=a.ok&&b.ok;
+      seg(a.p,b.p,ok?'#8430CE':'#D93025',ok?2.4:2,ok?[]:[5,4]);
+    }
+    const P0=project(traj.p0),P1=project(traj.p1);
+    g.fillStyle='#8430CE';
+    g.beginPath();g.arc(P0.x,P0.y,5,0,7);g.fill();
+    g.beginPath();g.arc(P1.x,P1.y,5,0,7);g.fill();
+    label(traj.p0,'시작','#6A1FB1',12,[8,-8]);
+    label(traj.p1,'목표','#6A1FB1',12,[8,-8]);
+  }
+
+  if(mods.ell){
+    for(let i=0;i<SAMP.length;i++){
+      const u=SAMP[i], v=[0,0,0];
+      for(let r=0;r<3;r++){let s=0;for(let c=0;c<4;c++)s+=J[r][c]*u[c];v[r]=s;}
+      const P=project([t[0]+v[0]*0.3,t[1]+v[1]*0.3,t[2]+v[2]*0.3]);
+      g.fillStyle='rgba(66,133,244,0.30)';g.beginPath();g.arc(P.x,P.y,1.7,0,7);g.fill();
+    }
+    label([t[0],t[1],t[2]+0.95],'낼 수 있는 도구 속도의 범위','#1a73e8',12,[8,0]);
+  }
+
+  const jp=S.joints.map(M=>apply(M,[0,0,0]));
+  for(let i=0;i<jp.length-1;i++) seg(jp[i],jp[i+1],armCol,7);
+  for(let i=0;i<jp.length-1;i++) seg(jp[i],jp[i+1],near?'#FDE3C8':'#e9ebef',3.4);
+  jp.slice(0,3).forEach(p=>{const P=project(p);g.fillStyle='#fff';g.strokeStyle=armCol;g.lineWidth=2;g.beginPath();g.arc(P.x,P.y,5.5,0,7);g.fill();g.stroke();});
+
+  box(S.O,0.56);
+  cylinder(mul(trans(0.35,1.95,0),rotZ(D(20))),0.38,0.75,'rgba(236,238,242,0.9)','#9aa3ad');
+
+  const map={W:S.W,B:S.B,T:S.T,O:S.O,G:S.G};
+  FRAMES.forEach(f=>{if(f.on)frame(map[f.k],'{'+f.k+'}',f.len);});
+
+  if(mods.jac){
+    const shades=['#1A73E8','#4285F4','#7BAAF7','#A8C7FA'];
+    for(let c=0;c<4;c++){
+      const d=[J[0][c],J[1][c],J[2][c]];
+      const n=Math.hypot(d[0],d[1],d[2]);
+      if(n<1e-6) continue;
+      arrow(t,[d[0]/n,d[1]/n,d[2]/n],Math.min(n*0.28,1.1),shades[c],'J'+(c+1),1.8);
+    }
+    const v=[0,0,0];
+    for(let r=0;r<3;r++){let s=0;for(let c=0;c<4;c++)s+=J[r][c]*qd[c];v[r]=s;}
+    const nv=Math.hypot(v[0],v[1],v[2]);
+    if(nv>1e-3){
+      arrow(t,[v[0]/nv,v[1]/nv,v[2]/nv],Math.min(nv*0.3,1.4),'#188038',null,3);
+      label([t[0]+v[0]*0.3,t[1]+v[1]*0.3,t[2]+v[2]*0.3],'v = '+nv.toFixed(2)+' m/s','#0E6027',12,[8,-8]);
+    }
+  }
+
+  if(diag.ratio<0.35){
+    const d=diag.dir, len=0.95;
+    seg([t[0]-d[0]*len,t[1]-d[1]*len,t[2]-d[2]*len],[t[0]+d[0]*len,t[1]+d[1]*len,t[2]+d[2]*len],'#E8710A',2,[7,5]);
+    arrow(t,d,len,'#E8710A');
+    arrow(t,[-d[0],-d[1],-d[2]],len,'#E8710A');
+    label([t[0]+d[0]*len,t[1]+d[1]*len,t[2]+d[2]*len],'이 방향으로 속도를 낼 수 없다','#B0560A',12,[8,-8]);
+  }
+
+  if(mods.ik){
+    const g0=ik.target, ok=ik.err<0.02, col=ok?'#188038':'#B0560A';
+    seg([g0[0],g0[1],0],[g0[0],g0[1],g0[2]],col,1,[4,4]);
+    const P=project(g0);
+    g.strokeStyle=col;g.lineWidth=2;g.beginPath();g.arc(P.x,P.y,7,0,7);g.stroke();
+    g.beginPath();g.moveTo(P.x-10,P.y);g.lineTo(P.x+10,P.y);g.moveTo(P.x,P.y-10);g.lineTo(P.x,P.y+10);g.stroke();
+    label(g0,ok?'목표':'도달 불가',col,12,[13,-9]);
+  }
+
+  const a=apply(map[selA.value],[0,0,0]),b=apply(map[selB.value],[0,0,0]);
+  if(selA.value!==selB.value){
+    seg(a,b,'#4285F4',1.6,[6,4]);
+    const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];
+    label(mid,'P','#1a73e8',12,[6,-8]);
+  }
+  updatePanel(map,J);
+}
+resize();
+</script>
+</body>
+</html>
